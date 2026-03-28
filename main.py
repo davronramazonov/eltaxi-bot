@@ -207,5 +207,28 @@ async def get_video_id(message: types.Message):
 async def main():
     await dp.start_polling(bot)
 
+async def start_webhook():
+    webhook_url = os.getenv("WEBHOOK_URL")
+    if webhook_url:
+        await bot.set_webhook(webhook_url)
+        from aiogram.types import Update
+        from aiohttp import web
+        app = web.Application()
+        router = Router()
+        
+        @router.post("/webhook")
+        async def webhook(request):
+            update = Update(**await request.json())
+            await dp.feed_update(bot, update)
+            return web.Response()
+        
+        app.router.include_router(router)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", 8000)
+        await site.start()
+    else:
+        await dp.start_polling(bot)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_webhook())
